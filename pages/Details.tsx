@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Play, Plus, X, Share2, ChevronDown, ChevronRight, MonitorPlay, Film, Tv, ArrowLeft, Layers } from 'lucide-react';
+import { Play, Plus, Share2, Film } from 'lucide-react';
 import { fetchDetails, getImageUrl } from '../services/api';
 import { MovieDetails } from '../types';
 import ContentRow from '../components/ContentRow';
@@ -11,19 +11,13 @@ const Details: React.FC = () => {
   const location = useLocation();
   const [movie, setMovie] = useState<MovieDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
-  
-  // Player state
-  const [season, setSeason] = useState(1);
-  const [episode, setEpisode] = useState(1);
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Check for autoplay passed from state
+    // Check for autoplay passed from state and redirect immediately
     if (location.state && (location.state as any).autoplay) {
-        setIsPlaying(true);
+        navigate(`/player/${type}/${id}`);
     }
-  }, [location.state]);
+  }, [location.state, type, id, navigate]);
 
   useEffect(() => {
     const loadDetails = async () => {
@@ -31,25 +25,10 @@ const Details: React.FC = () => {
         setLoading(true);
         const data = await fetchDetails(parseInt(id), type as 'movie' | 'tv');
         setMovie(data);
-        
-        // Default to season 1 episode 1 if TV
-        if (type === 'tv') {
-            setSeason(1);
-            setEpisode(1);
-        }
-        
         setLoading(false);
       }
     };
     loadDetails();
-    
-    // Reset player state when ID changes
-    if (!location.state || !(location.state as any).keepPlayerState) {
-        setIsPlaying(false);
-        setSeason(1);
-        setEpisode(1);
-        setSidebarOpen(false);
-    }
   }, [type, id]);
 
   if (loading) {
@@ -68,143 +47,12 @@ const Details: React.FC = () => {
 
   const seasons = movie.seasons?.filter(s => s.season_number > 0) || [];
   
-  // Enforced MultiServer (vidsrc.cc)
-  const videoUrl = type === 'movie'
-      ? `https://vidsrc.cc/v2/embed/movie/${movie.id}`
-      : `https://vidsrc.cc/v2/embed/tv/${movie.id}/${season}/${episode}`;
+  const handlePlay = () => {
+    navigate(`/player/${type}/${id}`);
+  };
 
   return (
     <div className="bg-zinc-950 min-h-screen pb-20 overflow-x-hidden">
-      {/* Video Player Overlay */}
-      {isPlaying && (
-        <div className="fixed inset-0 z-[60] bg-black flex flex-col animate-in fade-in duration-300">
-           
-           {/* Top Left Back Button */}
-           <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50">
-             <button 
-               onClick={() => setIsPlaying(false)}
-               className="group flex items-center justify-center bg-black/40 hover:bg-red-600 w-12 h-12 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 shadow-lg hover:scale-110"
-             >
-               <ArrowLeft className="w-6 h-6 text-white" />
-             </button>
-           </div>
-
-           {/* Floating Episode List Toggle (Only for TV) */}
-           {type === 'tv' && (
-             <div className="absolute bottom-6 right-6 md:bottom-10 md:right-10 z-50">
-                <button 
-                  onClick={() => setSidebarOpen(true)}
-                  className="flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all hover:scale-105 active:scale-95 font-bold tracking-wide"
-                >
-                  <Layers className="w-5 h-5" />
-                  <span className="hidden md:inline">Episodes</span>
-                </button>
-             </div>
-           )}
-
-           {/* Episodes Sidebar Overlay */}
-           {type === 'tv' && (
-              <div 
-                className={`
-                    fixed inset-y-0 right-0 w-full sm:w-96 bg-zinc-950/95 backdrop-blur-xl border-l border-white/10 z-[70] 
-                    shadow-2xl transform transition-transform duration-500 ease-out flex flex-col
-                    ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
-                `}
-              >
-                  <div className="flex items-center justify-between p-6 border-b border-white/5 bg-zinc-900/50">
-                     <div>
-                        <h2 className="text-xl font-bold text-white">Episodes</h2>
-                        <p className="text-xs text-zinc-400 mt-1 font-medium">{movie.name}</p>
-                     </div>
-                     <button 
-                       onClick={() => setSidebarOpen(false)}
-                       className="p-2 hover:bg-white/10 rounded-full transition-colors"
-                     >
-                        <X className="w-6 h-6 text-zinc-400 hover:text-white" />
-                     </button>
-                  </div>
-                  
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                     {seasons.map((s) => (
-                        <div key={s.id} className="bg-zinc-900/40 rounded-xl overflow-hidden border border-white/5 transition-all duration-300">
-                           <button 
-                               onClick={() => setSeason(s.season_number)}
-                               className={`w-full flex items-center justify-between p-4 text-left font-medium transition-colors ${season === s.season_number ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
-                           >
-                               <span className="flex items-center gap-2">
-                                  Season {s.season_number}
-                                  {season === s.season_number && <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded">Playing</span>}
-                               </span>
-                               {season === s.season_number ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                           </button>
-                           
-                           {/* Episodes Grid - Only visible for active season */}
-                           <div className={`grid grid-cols-5 gap-2 p-3 bg-black/20 border-t border-white/5 ${season === s.season_number ? 'block' : 'hidden'}`}>
-                               {Array.from({ length: s.episode_count }).map((_, i) => {
-                                   const epNum = i + 1;
-                                   const isActive = episode === epNum && season === s.season_number;
-                                   return (
-                                       <button
-                                          key={epNum}
-                                          onClick={() => {
-                                              setEpisode(epNum);
-                                              // Optional: close sidebar on selection for mobile? 
-                                              // setSidebarOpen(false); 
-                                          }}
-                                          className={`
-                                            aspect-square rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200
-                                            ${isActive 
-                                              ? 'bg-red-600 text-white shadow-lg shadow-red-900/30 scale-105' 
-                                              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white hover:scale-105'
-                                            }
-                                          `}
-                                       >
-                                           {epNum}
-                                       </button>
-                                   );
-                               })}
-                           </div>
-                        </div>
-                     ))}
-                     {seasons.length === 0 && (
-                        <div className="text-center text-zinc-500 py-10">
-                            No season info available
-                        </div>
-                     )}
-                  </div>
-              </div>
-           )}
-           
-           {/* Overlay backdrop for sidebar (click to close) */}
-           {isSidebarOpen && (
-             <div className="fixed inset-0 bg-black/50 z-[65] backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-           )}
-
-           {/* Player Container */}
-           <div className="flex-1 flex items-center justify-center relative bg-black">
-                {/* Loader / Placeholder behind iframe */}
-                <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-0">
-                    <div className="animate-pulse flex flex-col items-center gap-2">
-                        <div className="w-10 h-10 border-4 border-zinc-700 border-t-red-600 rounded-full animate-spin"></div>
-                        <p className="text-zinc-500 text-xs font-medium tracking-widest uppercase">Loading Stream</p>
-                    </div>
-                </div>
-                
-                <iframe
-                    key={videoUrl} 
-                    src={videoUrl}
-                    className="relative z-10 w-full h-full"
-                    frameBorder="0"
-                    allowFullScreen
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="origin"
-                    sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
-                    title="Video Player"
-                />
-           </div>
-        </div>
-      )}
-
       {/* Main Banner */}
       <div className="relative w-full h-[55vh] md:h-[75vh]">
         <img 
@@ -239,7 +87,7 @@ const Details: React.FC = () => {
 
           <div className="flex flex-wrap gap-4 mt-2">
             <button 
-              onClick={() => setIsPlaying(true)}
+              onClick={handlePlay}
               className="flex items-center gap-2 bg-white text-black px-8 py-3.5 rounded-lg font-bold hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.3)]"
             >
               <Play className="w-5 h-5 fill-black" /> 

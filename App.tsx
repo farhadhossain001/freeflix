@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Explore from './pages/Explore';
 import Details from './pages/Details';
 import SearchPage from './pages/Search';
+import Player from './pages/Player';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -16,28 +17,34 @@ const ScrollToTop = () => {
   return null;
 };
 
-const App: React.FC = () => {
-  return (
-    <Router>
-      <div className="min-h-screen bg-zinc-950 text-white font-sans antialiased selection:bg-red-600 selection:text-white">
-        <ScrollToTop />
-        <Navbar />
-        
-        <main>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/movies" element={<Explore type="movie" />} />
-            <Route path="/series" element={<Explore type="tv" />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/details/:type/:id" element={<Details />} />
-            {/* Fallback routes */}
-            <Route path="/latest" element={<Explore type="movie" />} />
-          </Routes>
-        </main>
+const AppContent: React.FC = () => {
+  const location = useLocation();
+  const isPlayerPage = location.pathname.startsWith('/player');
 
-        <BottomNav />
-        
-        {/* Footer for Desktop */}
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white font-sans antialiased selection:bg-red-600 selection:text-white">
+      <ScrollToTop />
+      
+      {/* Hide Navbar on Player page */}
+      {!isPlayerPage && <Navbar />}
+      
+      <main>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/movies" element={<Explore type="movie" />} />
+          <Route path="/series" element={<Explore type="tv" />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/details/:type/:id" element={<Details />} />
+          <Route path="/player/:type/:id" element={<Player />} />
+          {/* Fallback routes */}
+          <Route path="/latest" element={<Explore type="movie" />} />
+        </Routes>
+      </main>
+
+      {/* Hide BottomNav and Footer on Player page */}
+      {!isPlayerPage && <BottomNav />}
+      
+      {!isPlayerPage && (
         <footer className="hidden md:block bg-black/50 py-10 text-center text-zinc-600 text-sm mt-10">
           <div className="max-w-4xl mx-auto px-4">
             <p className="mb-4">FreeFlix &copy; {new Date().getFullYear()}</p>
@@ -48,7 +55,15 @@ const App: React.FC = () => {
             </div>
           </div>
         </footer>
-      </div>
+      )}
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 };

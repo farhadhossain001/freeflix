@@ -23,7 +23,7 @@ const Hero: React.FC<HeroProps> = ({ movie }) => {
 
   const handlePlay = () => {
     const type = movie.media_type || (movie.title ? 'movie' : 'tv');
-    navigate(`/details/${type}/${movie.id}`, { state: { autoplay: true } });
+    navigate(`/player/${type}/${movie.id}`);
   };
 
   const handleInfo = () => {
