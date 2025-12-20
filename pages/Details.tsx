@@ -1,47 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Play, Plus, X, Share2, ChevronDown, MonitorPlay, ChevronLeft, ChevronRight, Film, Tv } from 'lucide-react';
+import { Play, Plus, X, Share2, ChevronDown, ChevronRight, MonitorPlay, Film, Tv, ArrowLeft, Layers } from 'lucide-react';
 import { fetchDetails, getImageUrl } from '../services/api';
 import { MovieDetails } from '../types';
 import ContentRow from '../components/ContentRow';
-
-interface Server {
-  name: string;
-  getUrl: (id: number, type: 'movie' | 'tv', season?: number, episode?: number) => string;
-}
-
-const SERVERS: Server[] = [
-  {
-    name: "VidSrc",
-    getUrl: (id, type, s, e) => type === 'movie'
-      ? `https://vidsrc.to/embed/movie/${id}`
-      : `https://vidsrc.to/embed/tv/${id}/${s}/${e}`
-  },
-  {
-    name: "MultiEmbed",
-    getUrl: (id, type, s, e) => type === 'movie'
-      ? `https://multiembed.mov/directstream.php?video_id=${id}&tmdb=1`
-      : `https://multiembed.mov/directstream.php?video_id=${id}&tmdb=1&s=${s}&e=${e}`
-  },
-  {
-    name: "MultiServer", 
-    getUrl: (id, type, s, e) => type === 'movie'
-      ? `https://vidsrc.cc/v2/embed/movie/${id}`
-      : `https://vidsrc.cc/v2/embed/tv/${id}/${s}/${e}`
-  },
-  {
-    name: "VidSrc Pro",
-    getUrl: (id, type, s, e) => type === 'movie'
-      ? `https://vidsrc.pro/embed/movie/${id}`
-      : `https://vidsrc.pro/embed/tv/${id}/${s}/${e}`
-  },
-  {
-     name: "SmashyStream",
-     getUrl: (id, type, s, e) => type === 'movie'
-       ? `https://embed.smashystream.com/playere.php?tmdb=${id}`
-       : `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${s}&episode=${e}`
-  }
-];
 
 const Details: React.FC = () => {
   const { type, id } = useParams<{ type: string; id: string }>();
@@ -52,9 +14,9 @@ const Details: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   
   // Player state
-  const [serverIndex, setServerIndex] = useState(0);
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Check for autoplay passed from state
@@ -84,9 +46,9 @@ const Details: React.FC = () => {
     // Reset player state when ID changes
     if (!location.state || !(location.state as any).keepPlayerState) {
         setIsPlaying(false);
-        setServerIndex(0);
         setSeason(1);
         setEpisode(1);
+        setSidebarOpen(false);
     }
   }, [type, id]);
 
@@ -105,74 +67,121 @@ const Details: React.FC = () => {
     : `https://picsum.photos/seed/${movie.id}/1920/1080`;
 
   const seasons = movie.seasons?.filter(s => s.season_number > 0) || [];
-  const currentSeasonData = seasons.find(s => s.season_number === season);
-  const episodeCount = currentSeasonData?.episode_count || 1;
-  const episodes = Array.from({ length: episodeCount }, (_, i) => i + 1);
-
-  const activeServer = SERVERS[serverIndex];
-  const videoUrl = activeServer.getUrl(movie.id, type as 'movie' | 'tv', season, episode);
-
-  const handleNextEpisode = () => {
-    if (episode < episodeCount) {
-        setEpisode(episode + 1);
-    } else {
-        // Try next season
-        const nextSeason = seasons.find(s => s.season_number === season + 1);
-        if (nextSeason) {
-            setSeason(nextSeason.season_number);
-            setEpisode(1);
-        }
-    }
-  };
-
-  const handlePrevEpisode = () => {
-    if (episode > 1) {
-        setEpisode(episode - 1);
-    } else {
-        // Try prev season
-        const prevSeason = seasons.find(s => s.season_number === season - 1);
-        if (prevSeason) {
-            setSeason(prevSeason.season_number);
-            setEpisode(prevSeason.episode_count);
-        }
-    }
-  };
+  
+  // Enforced MultiServer (vidsrc.cc)
+  const videoUrl = type === 'movie'
+      ? `https://vidsrc.cc/v2/embed/movie/${movie.id}`
+      : `https://vidsrc.cc/v2/embed/tv/${movie.id}/${season}/${episode}`;
 
   return (
     <div className="bg-zinc-950 min-h-screen pb-20 overflow-x-hidden">
       {/* Video Player Overlay */}
       {isPlaying && (
-        <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-300">
-           {/* Header */}
-           <div className="flex justify-between items-center p-4 md:p-6 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-10 pointer-events-none">
-             <div className="pointer-events-auto flex flex-col">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setIsPlaying(false)} className="md:hidden text-white/80 hover:text-white mr-2">
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
-                    <h2 className="text-white font-bold text-lg md:text-2xl drop-shadow-md line-clamp-1">
-                        {movie.title || movie.name}
-                    </h2>
-                </div>
-                {type === 'tv' && (
-                    <p className="text-zinc-300 text-sm font-medium ml-0 md:ml-0 mt-1 flex items-center gap-2">
-                         <span className="bg-red-600/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">S{season}</span>
-                         <span className="bg-zinc-700/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">E{episode}</span>
-                    </p>
-                )}
-             </div>
-             
+        <div className="fixed inset-0 z-[60] bg-black flex flex-col animate-in fade-in duration-300">
+           
+           {/* Top Left Back Button */}
+           <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50">
              <button 
                onClick={() => setIsPlaying(false)}
-               className="pointer-events-auto group bg-zinc-800/50 hover:bg-red-600/80 p-2.5 rounded-full backdrop-blur-md transition-all duration-300 border border-white/10 hover:border-red-500 hover:rotate-90"
+               className="group flex items-center justify-center bg-black/40 hover:bg-red-600 w-12 h-12 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 shadow-lg hover:scale-110"
              >
-               <X className="w-5 h-5 md:w-6 md:h-6 text-white group-hover:scale-110 transition-transform" />
+               <ArrowLeft className="w-6 h-6 text-white" />
              </button>
            </div>
+
+           {/* Floating Episode List Toggle (Only for TV) */}
+           {type === 'tv' && (
+             <div className="absolute bottom-6 right-6 md:bottom-10 md:right-10 z-50">
+                <button 
+                  onClick={() => setSidebarOpen(true)}
+                  className="flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all hover:scale-105 active:scale-95 font-bold tracking-wide"
+                >
+                  <Layers className="w-5 h-5" />
+                  <span className="hidden md:inline">Episodes</span>
+                </button>
+             </div>
+           )}
+
+           {/* Episodes Sidebar Overlay */}
+           {type === 'tv' && (
+              <div 
+                className={`
+                    fixed inset-y-0 right-0 w-full sm:w-96 bg-zinc-950/95 backdrop-blur-xl border-l border-white/10 z-[70] 
+                    shadow-2xl transform transition-transform duration-500 ease-out flex flex-col
+                    ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
+                `}
+              >
+                  <div className="flex items-center justify-between p-6 border-b border-white/5 bg-zinc-900/50">
+                     <div>
+                        <h2 className="text-xl font-bold text-white">Episodes</h2>
+                        <p className="text-xs text-zinc-400 mt-1 font-medium">{movie.name}</p>
+                     </div>
+                     <button 
+                       onClick={() => setSidebarOpen(false)}
+                       className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                     >
+                        <X className="w-6 h-6 text-zinc-400 hover:text-white" />
+                     </button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                     {seasons.map((s) => (
+                        <div key={s.id} className="bg-zinc-900/40 rounded-xl overflow-hidden border border-white/5 transition-all duration-300">
+                           <button 
+                               onClick={() => setSeason(s.season_number)}
+                               className={`w-full flex items-center justify-between p-4 text-left font-medium transition-colors ${season === s.season_number ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+                           >
+                               <span className="flex items-center gap-2">
+                                  Season {s.season_number}
+                                  {season === s.season_number && <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded">Playing</span>}
+                               </span>
+                               {season === s.season_number ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                           </button>
+                           
+                           {/* Episodes Grid - Only visible for active season */}
+                           <div className={`grid grid-cols-5 gap-2 p-3 bg-black/20 border-t border-white/5 ${season === s.season_number ? 'block' : 'hidden'}`}>
+                               {Array.from({ length: s.episode_count }).map((_, i) => {
+                                   const epNum = i + 1;
+                                   const isActive = episode === epNum && season === s.season_number;
+                                   return (
+                                       <button
+                                          key={epNum}
+                                          onClick={() => {
+                                              setEpisode(epNum);
+                                              // Optional: close sidebar on selection for mobile? 
+                                              // setSidebarOpen(false); 
+                                          }}
+                                          className={`
+                                            aspect-square rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200
+                                            ${isActive 
+                                              ? 'bg-red-600 text-white shadow-lg shadow-red-900/30 scale-105' 
+                                              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white hover:scale-105'
+                                            }
+                                          `}
+                                       >
+                                           {epNum}
+                                       </button>
+                                   );
+                               })}
+                           </div>
+                        </div>
+                     ))}
+                     {seasons.length === 0 && (
+                        <div className="text-center text-zinc-500 py-10">
+                            No season info available
+                        </div>
+                     )}
+                  </div>
+              </div>
+           )}
            
-           {/* Player Stage */}
-           <div className="flex-1 flex items-center justify-center p-0 md:p-4 lg:p-10 relative">
-             <div className="relative w-full h-full max-w-[1600px] flex items-center bg-black shadow-2xl md:rounded-xl overflow-hidden border border-zinc-900/50">
+           {/* Overlay backdrop for sidebar (click to close) */}
+           {isSidebarOpen && (
+             <div className="fixed inset-0 bg-black/50 z-[65] backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+           )}
+
+           {/* Player Container */}
+           <div className="flex-1 flex items-center justify-center relative bg-black">
                 {/* Loader / Placeholder behind iframe */}
                 <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-0">
                     <div className="animate-pulse flex flex-col items-center gap-2">
@@ -182,9 +191,9 @@ const Details: React.FC = () => {
                 </div>
                 
                 <iframe
-                    key={`${videoUrl}-${serverIndex}`} 
+                    key={videoUrl} 
                     src={videoUrl}
-                    className="relative z-10 w-full h-full aspect-video"
+                    className="relative z-10 w-full h-full"
                     frameBorder="0"
                     allowFullScreen
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -192,93 +201,6 @@ const Details: React.FC = () => {
                     sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
                     title="Video Player"
                 />
-             </div>
-           </div>
-           
-           {/* Controls Bar */}
-           <div className="bg-zinc-900/90 border-t border-white/5 backdrop-blur-lg p-4 pb-8 md:pb-6 transition-transform duration-300">
-             <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6 justify-between items-center">
-                
-                {/* Server Selector */}
-                <div className="flex flex-col gap-2 w-full lg:w-auto">
-                    <div className="flex items-center gap-2 text-zinc-400 mb-1">
-                        <MonitorPlay className="w-3 h-3" />
-                        <span className="text-[10px] uppercase font-bold tracking-wider">Source</span>
-                    </div>
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide w-full">
-                        {SERVERS.map((server, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => setServerIndex(idx)}
-                                className={`whitespace-nowrap px-4 py-2 text-sm rounded-lg font-medium transition-all duration-200 border ${
-                                    serverIndex === idx 
-                                    ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-900/20' 
-                                    : 'bg-zinc-800/50 text-zinc-400 border-zinc-700/50 hover:bg-zinc-700 hover:text-white hover:border-zinc-600'
-                                }`}
-                            >
-                                {server.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* TV Controls */}
-                {type === 'tv' && (
-                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto bg-zinc-950/30 p-2 rounded-xl border border-white/5">
-                         {/* Season Select */}
-                         <div className="relative group w-full sm:w-auto">
-                            <select 
-                                value={season} 
-                                onChange={(e) => {
-                                    setSeason(Number(e.target.value));
-                                    setEpisode(1);
-                                }}
-                                className="w-full sm:w-40 appearance-none bg-zinc-900 border border-zinc-700 text-white py-2.5 pl-4 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:border-red-600 transition-all cursor-pointer hover:bg-zinc-800"
-                            >
-                                {seasons.map((s) => (
-                                    <option key={s.id} value={s.season_number}>
-                                        Season {s.season_number}
-                                    </option>
-                                ))}
-                                {seasons.length === 0 && <option value={1}>Season 1</option>}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4 pointer-events-none group-hover:text-white transition-colors" />
-                         </div>
-
-                         {/* Episode Navigation */}
-                         <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <button 
-                                onClick={handlePrevEpisode}
-                                disabled={episode <= 1 && season <= 1}
-                                className="p-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-white border border-zinc-700"
-                            >
-                                <ChevronLeft className="w-4 h-4" />
-                            </button>
-
-                            <div className="relative flex-1 sm:w-48 group">
-                                <select
-                                    value={episode}
-                                    onChange={(e) => setEpisode(Number(e.target.value))}
-                                    className="w-full appearance-none bg-zinc-900 border border-zinc-700 text-white py-2.5 pl-4 pr-10 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:border-red-600 transition-all cursor-pointer hover:bg-zinc-800"
-                                >
-                                    {episodes.map((ep) => (
-                                        <option key={ep} value={ep}>Episode {ep}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4 pointer-events-none group-hover:text-white transition-colors" />
-                            </div>
-
-                            <button 
-                                onClick={handleNextEpisode}
-                                disabled={episode >= episodeCount && season >= (seasons.length || 1)}
-                                className="p-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-white border border-zinc-700"
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </button>
-                         </div>
-                    </div>
-                )}
-             </div>
            </div>
         </div>
       )}
