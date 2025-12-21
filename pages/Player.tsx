@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import * as _ReactRouterDOM from 'react-router-dom';
-import { ArrowLeft, Layers, X, ChevronDown, ChevronRight, Server, Check } from 'lucide-react';
+import { Layers, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { fetchDetails } from '../services/api';
 import { MovieDetails } from '../types';
 
@@ -24,7 +24,6 @@ const Player: React.FC = () => {
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isServerMenuOpen, setServerMenuOpen] = useState(false);
   const [currentServer, setCurrentServer] = useState(SERVERS[0]);
   const [loading, setLoading] = useState(true);
 
@@ -108,82 +107,11 @@ const Player: React.FC = () => {
 
   return (
     <div className="bg-black h-screen w-screen overflow-hidden flex flex-col relative group/player">
-       {/* Top Controls - Visible on hover or when interaction happens */}
-       <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-50 transition-opacity duration-300 opacity-100 group-hover/player:opacity-100 md:opacity-0">
-           {/* Back Button */}
-           <button 
-             onClick={handleBack}
-             className="group flex items-center justify-center bg-black/50 hover:bg-red-600 w-12 h-12 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 shadow-xl hover:scale-110"
-           >
-             <ArrowLeft className="w-5 h-5 text-white" />
-           </button>
+       {/* Removed Top Controls Container (Back button & Server select) to fix clickability and declutter */}
 
-           {/* Server Select Button - HIDDEN as requested */}
-           <button 
-             onClick={() => setServerMenuOpen(true)}
-             className="hidden flex items-center gap-2 px-5 py-2.5 bg-black/50 hover:bg-zinc-800 text-zinc-200 hover:text-white rounded-full backdrop-blur-md border border-white/10 transition-all shadow-xl font-medium"
-           >
-             <Server className="w-4 h-4" />
-             <span className="text-sm hidden sm:inline">{currentServer.name}</span>
-             <ChevronDown className="w-3 h-3 ml-1 opacity-70" />
-           </button>
-       </div>
-
-       {/* Server Selection Overlay */}
-       {isServerMenuOpen && (
-           <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 animate-in fade-in duration-200">
-               <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setServerMenuOpen(false)} />
-               
-               <div className="relative bg-zinc-900 w-full max-w-md rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden transform transition-all scale-100">
-                   <div className="flex items-center justify-between p-5 border-b border-zinc-800 bg-zinc-900">
-                       <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                           <Server className="w-5 h-5 text-red-600" /> 
-                           Streaming Source
-                       </h3>
-                       <button 
-                           onClick={() => setServerMenuOpen(false)}
-                           className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-white"
-                       >
-                           <X className="w-5 h-5" />
-                       </button>
-                   </div>
-                   
-                   <div className="p-3 bg-black/40">
-                       {SERVERS.map((server) => (
-                           <button
-                               key={server.id}
-                               onClick={() => {
-                                   setCurrentServer(server);
-                                   setServerMenuOpen(false);
-                               }}
-                               className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 mb-2 last:mb-0 group
-                                   ${currentServer.id === server.id 
-                                       ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' 
-                                       : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white'
-                                   }
-                               `}
-                           >
-                               <div className="flex flex-col items-start">
-                                   <span className="font-bold text-sm">
-                                       {server.name}
-                                   </span>
-                                   <span className={`text-xs mt-0.5 ${currentServer.id === server.id ? 'text-red-100' : 'text-zinc-500'}`}>
-                                       {server.id === 'superembed' ? 'Best for multi-language' : server.id === 'vidsrc-cc' ? 'High speed streaming' : 'Standard server'}
-                                   </span>
-                               </div>
-                               {currentServer.id === server.id && (
-                                    <Check className="w-5 h-5" />
-                               )}
-                           </button>
-                       ))}
-                   </div>
-               </div>
-           </div>
-       )}
-
-       {/* Sidebar Toggle (TV Only) */}
+       {/* Sidebar Toggle (TV Only) - Moved to Top Right */}
        {type === 'tv' && (
-         <div className="absolute bottom-10 right-10 z-50 transition-opacity duration-300 opacity-100 group-hover/player:opacity-100 md:opacity-0">
+         <div className="absolute top-6 right-6 z-50 transition-opacity duration-300 opacity-100 group-hover/player:opacity-100 md:opacity-0">
             <button 
               onClick={() => setSidebarOpen(true)}
               className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all hover:scale-105 active:scale-95 font-bold tracking-wide"
