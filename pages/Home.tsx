@@ -46,10 +46,10 @@ const Home: React.FC = () => {
       <Hero movie={heroMovie} />
       
       <div className="relative z-10 -mt-10 md:-mt-32">
-        <ContentRow title="Trending Now" movies={trending} />
-        <ContentRow title="Top Rated Movies" movies={topRated} isLarge />
-        <ContentRow title="Popular Series" movies={popularSeries} />
-        <ContentRow title="New Releases" movies={actionMovies} />
+        <ContentRow title="Trending Now" movies={trending} linkPath="/latest" />
+        <ContentRow title="Top Rated Movies" movies={topRated} isLarge linkPath="/movies" />
+        <ContentRow title="Popular Series" movies={popularSeries} linkPath="/series" />
+        <ContentRow title="New Releases" movies={actionMovies} linkPath="/movies" />
       </div>
     </div>
   );

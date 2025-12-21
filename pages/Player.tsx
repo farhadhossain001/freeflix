@@ -1,18 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import * as _ReactRouterDOM from 'react-router-dom';
 import { ArrowLeft, Layers, X, ChevronDown, ChevronRight, Server, Check } from 'lucide-react';
 import { fetchDetails } from '../services/api';
 import { MovieDetails } from '../types';
 
+// Fix: Cast react-router-dom to any to avoid type errors with missing members
+const { useParams, useNavigate } = _ReactRouterDOM as any;
+
 const SERVERS = [
   { id: 'vidsrc-cc', name: 'VidSrc 1 (Fast)', url: 'https://vidsrc.cc/v2/embed' },
+  { id: 'vidfast', name: 'VidFast', url: 'https://www.vidfast.pro' },
+  { id: 'embed-api', name: 'Embed API', url: 'https://player.embed-api.stream' },
+  { id: 'superembed', name: 'MultiEmbed', url: 'https://multiembed.mov' },
   { id: 'vidsrc-xyz', name: 'VidSrc 2 (Backup)', url: 'https://vidsrc.xyz/embed' },
   { id: 'vidsrc-pro', name: 'VidSrc 3 (Alt)', url: 'https://vidsrc.pro/embed' },
-  { id: 'superembed', name: 'SuperEmbed (Multi)', url: 'https://multiembed.mov' },
 ];
 
 const Player: React.FC = () => {
-  const { type, id } = useParams<{ type: string; id: string }>();
+  const { type, id } = useParams();
   const navigate = useNavigate();
   
   const [movie, setMovie] = useState<MovieDetails | null>(null);
@@ -26,7 +31,6 @@ const Player: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       if (type && id) {
-        // We fetch details to get the season/episode count and title
         const data = await fetchDetails(parseInt(id), type as 'movie' | 'tv');
         setMovie(data);
         setLoading(false);
@@ -34,6 +38,14 @@ const Player: React.FC = () => {
     };
     loadData();
   }, [type, id]);
+
+  const handleBack = () => {
+      if (window.history.length > 1) {
+          navigate(-1);
+      } else {
+          navigate('/');
+      }
+  };
 
   if (loading) {
      return (
@@ -48,6 +60,25 @@ const Player: React.FC = () => {
   const seasons = movie.seasons?.filter(s => s.season_number > 0) || [];
   
   const getVideoUrl = () => {
+      // Logic for VidFast
+      if (currentServer.id === 'vidfast') {
+          if (type === 'movie') {
+              return `${currentServer.url}/movie/${id}`;
+          } else {
+              return `${currentServer.url}/tv/${id}/${season}/${episode}`;
+          }
+      }
+
+      // Logic for Embed API
+      if (currentServer.id === 'embed-api') {
+          if (type === 'movie') {
+              return `${currentServer.url}/?id=${id}`;
+          } else {
+              return `${currentServer.url}/?id=${id}&s=${season}&e=${episode}`;
+          }
+      }
+
+      // Logic for MultiEmbed (SuperEmbed)
       if (currentServer.id === 'superembed') {
           if (type === 'movie') {
               return `${currentServer.url}/?video_id=${id}&tmdb=1`;
@@ -56,8 +87,7 @@ const Player: React.FC = () => {
           }
       }
       
-      // Standard VidSrc path structure: /embed/type/id or /embed/type/id/s/e
-      // Note: vidsrc.cc uses /v2/embed/movie/id
+      // Logic for VidSrc CC
       if (currentServer.id === 'vidsrc-cc') {
            if (type === 'movie') {
               return `${currentServer.url}/movie/${id}`;
@@ -66,7 +96,7 @@ const Player: React.FC = () => {
           }
       }
 
-      // Others usually /embed/movie/id
+      // Default fallback for generic VidSrc clones (xyz, pro)
       if (type === 'movie') {
           return `${currentServer.url}/movie/${id}`;
       } else {
@@ -77,37 +107,38 @@ const Player: React.FC = () => {
   const videoUrl = getVideoUrl();
 
   return (
-    <div className="bg-black h-screen w-screen overflow-hidden flex flex-col relative">
-       {/* Top Controls */}
-       <div className="absolute top-0 left-0 right-0 p-4 md:p-6 flex justify-between items-start z-50 pointer-events-none">
+    <div className="bg-black h-screen w-screen overflow-hidden flex flex-col relative group/player">
+       {/* Top Controls - Visible on hover or when interaction happens */}
+       <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-50 transition-opacity duration-300 opacity-100 group-hover/player:opacity-100 md:opacity-0">
            {/* Back Button */}
            <button 
-             onClick={() => navigate(-1)}
-             className="pointer-events-auto group flex items-center justify-center bg-black/40 hover:bg-red-600 w-12 h-12 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 shadow-lg hover:scale-110"
+             onClick={handleBack}
+             className="group flex items-center justify-center bg-black/50 hover:bg-red-600 w-12 h-12 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 shadow-xl hover:scale-110"
            >
-             <ArrowLeft className="w-6 h-6 text-white" />
+             <ArrowLeft className="w-5 h-5 text-white" />
            </button>
 
-           {/* Server Select Button */}
+           {/* Server Select Button - HIDDEN as requested */}
            <button 
              onClick={() => setServerMenuOpen(true)}
-             className="pointer-events-auto flex items-center gap-2 px-4 py-2.5 bg-black/40 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-full backdrop-blur-md border border-white/10 transition-all shadow-lg"
+             className="hidden flex items-center gap-2 px-5 py-2.5 bg-black/50 hover:bg-zinc-800 text-zinc-200 hover:text-white rounded-full backdrop-blur-md border border-white/10 transition-all shadow-xl font-medium"
            >
              <Server className="w-4 h-4" />
-             <span className="text-sm font-medium hidden sm:inline">{currentServer.name}</span>
+             <span className="text-sm hidden sm:inline">{currentServer.name}</span>
+             <ChevronDown className="w-3 h-3 ml-1 opacity-70" />
            </button>
        </div>
 
        {/* Server Selection Overlay */}
        {isServerMenuOpen && (
            <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 animate-in fade-in duration-200">
-               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setServerMenuOpen(false)} />
+               <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setServerMenuOpen(false)} />
                
-               <div className="relative bg-zinc-900 w-full max-w-md rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden">
-                   <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+               <div className="relative bg-zinc-900 w-full max-w-md rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden transform transition-all scale-100">
+                   <div className="flex items-center justify-between p-5 border-b border-zinc-800 bg-zinc-900">
                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
                            <Server className="w-5 h-5 text-red-600" /> 
-                           Select Server
+                           Streaming Source
                        </h3>
                        <button 
                            onClick={() => setServerMenuOpen(false)}
@@ -117,7 +148,7 @@ const Player: React.FC = () => {
                        </button>
                    </div>
                    
-                   <div className="p-2">
+                   <div className="p-3 bg-black/40">
                        {SERVERS.map((server) => (
                            <button
                                key={server.id}
@@ -125,34 +156,26 @@ const Player: React.FC = () => {
                                    setCurrentServer(server);
                                    setServerMenuOpen(false);
                                }}
-                               className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 mb-1 group
+                               className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 mb-2 last:mb-0 group
                                    ${currentServer.id === server.id 
-                                       ? 'bg-red-600/10 border border-red-600/20' 
-                                       : 'hover:bg-zinc-800 border border-transparent'
+                                       ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' 
+                                       : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white'
                                    }
                                `}
                            >
                                <div className="flex flex-col items-start">
-                                   <span className={`font-medium ${currentServer.id === server.id ? 'text-red-500' : 'text-zinc-200 group-hover:text-white'}`}>
+                                   <span className="font-bold text-sm">
                                        {server.name}
                                    </span>
-                                   <span className="text-xs text-zinc-500">
-                                       {server.id === 'superembed' ? 'Best for older content' : 'Fast streaming'}
+                                   <span className={`text-xs mt-0.5 ${currentServer.id === server.id ? 'text-red-100' : 'text-zinc-500'}`}>
+                                       {server.id === 'superembed' ? 'Best for multi-language' : server.id === 'vidsrc-cc' ? 'High speed streaming' : 'Standard server'}
                                    </span>
                                </div>
                                {currentServer.id === server.id && (
-                                   <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center">
-                                       <Check className="w-3.5 h-3.5 text-white" />
-                                   </div>
+                                    <Check className="w-5 h-5" />
                                )}
                            </button>
                        ))}
-                   </div>
-                   
-                   <div className="p-4 bg-zinc-950/50 border-t border-zinc-800 text-center">
-                       <p className="text-xs text-zinc-500">
-                           If a video doesn't load, try switching servers.
-                       </p>
                    </div>
                </div>
            </div>
@@ -160,10 +183,10 @@ const Player: React.FC = () => {
 
        {/* Sidebar Toggle (TV Only) */}
        {type === 'tv' && (
-         <div className="absolute bottom-6 right-6 md:bottom-10 md:right-10 z-50">
+         <div className="absolute bottom-10 right-10 z-50 transition-opacity duration-300 opacity-100 group-hover/player:opacity-100 md:opacity-0">
             <button 
               onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all hover:scale-105 active:scale-95 font-bold tracking-wide"
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all hover:scale-105 active:scale-95 font-bold tracking-wide"
             >
               <Layers className="w-5 h-5" />
               <span className="hidden md:inline">Episodes</span>
@@ -220,7 +243,7 @@ const Player: React.FC = () => {
                                       className={`
                                         aspect-square rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200
                                         ${isActive 
-                                          ? 'bg-red-600 text-white shadow-lg shadow-red-900/30 scale-105' 
+                                          ? 'bg-red-600 text-white shadow-lg shadow-red-900/30 scale-105 ring-2 ring-red-600/50' 
                                           : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white hover:scale-105'
                                         }
                                       `}
@@ -248,12 +271,11 @@ const Player: React.FC = () => {
 
        {/* Player Container */}
        <div className="flex-1 flex items-center justify-center relative bg-black">
-            {/* Loader / Placeholder behind iframe */}
+            {/* Loader / Placeholder */}
             <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-0">
                 <div className="animate-pulse flex flex-col items-center gap-2">
-                    <div className="w-10 h-10 border-4 border-zinc-700 border-t-red-600 rounded-full animate-spin"></div>
-                    <p className="text-zinc-500 text-xs font-medium tracking-widest uppercase">Loading Stream</p>
-                    <p className="text-zinc-600 text-[10px] font-mono mt-2">{currentServer.name}</p>
+                    <div className="w-12 h-12 border-4 border-zinc-800 border-t-red-600 rounded-full animate-spin"></div>
+                    <p className="text-zinc-500 text-xs font-medium tracking-widest uppercase mt-4">Establishing Connection</p>
                 </div>
             </div>
             

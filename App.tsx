@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import * as _ReactRouterDOM from 'react-router-dom';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
@@ -7,6 +7,9 @@ import Explore from './pages/Explore';
 import Details from './pages/Details';
 import SearchPage from './pages/Search';
 import Player from './pages/Player';
+
+// Fix: Cast react-router-dom to any to avoid type errors with missing members
+const { HashRouter: Router, Routes, Route, useLocation } = _ReactRouterDOM as any;
 
 // Scroll to top on route change
 const ScrollToTop = () => {

@@ -1,6 +1,9 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import * as _ReactRouterDOM from 'react-router-dom';
 import { Home, Clapperboard, Tv, Search } from 'lucide-react';
+
+// Fix: Cast react-router-dom to any to avoid type errors with missing members
+const { Link, useLocation } = _ReactRouterDOM as any;
 
 const BottomNav: React.FC = () => {
   const location = useLocation();

@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import * as _ReactRouterDOM from 'react-router-dom';
 import MovieCard from '../components/MovieCard';
 import { fetchMovies, fetchSeries } from '../services/api';
 import { Movie } from '../types';
+
+// Fix: Cast react-router-dom to any to avoid type errors with missing members
+const { useLocation } = _ReactRouterDOM as any;
 
 interface ExploreProps {
   type: 'movie' | 'tv';
@@ -27,7 +30,6 @@ const Explore: React.FC<ExploreProps> = ({ type }) => {
         data = [...popular, ...top];
       }
       
-      // Remove duplicates
       const uniqueItems = Array.from(new Map(data.map(item => [item.id, item])).values());
       setItems(uniqueItems);
       setLoading(false);
@@ -37,8 +39,8 @@ const Explore: React.FC<ExploreProps> = ({ type }) => {
   }, [type, location.pathname]);
 
   return (
-    <div className="bg-zinc-950 min-h-screen pt-24 px-4 md:px-12 pb-24">
-      <h1 className="text-3xl font-bold text-white mb-8">
+    <div className="bg-zinc-950 min-h-screen pt-28 px-4 md:px-14 pb-24">
+      <h1 className="text-3xl md:text-4xl font-bold text-white mb-8 tracking-tight">
         {type === 'movie' ? 'Movies' : 'TV Series'}
       </h1>
 
@@ -47,9 +49,9 @@ const Explore: React.FC<ExploreProps> = ({ type }) => {
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-10">
           {items.map((item) => (
-             <div key={item.id} className="flex justify-center">
+             <div key={item.id} className="flex justify-center w-full">
                 <MovieCard movie={{...item, media_type: type}} />
              </div>
           ))}
