@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import * as _ReactRouterDOM from 'react-router-dom';
-import { Layers, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Layers, X, ChevronDown, ChevronRight, Server, Check } from 'lucide-react';
 import { fetchDetails } from '../services/api';
 import { MovieDetails } from '../types';
 
@@ -9,11 +9,7 @@ const { useParams, useNavigate } = _ReactRouterDOM as any;
 
 const SERVERS = [
   { id: 'vidsrc-cc', name: 'VidSrc 1 (Fast)', url: 'https://vidsrc.cc/v2/embed' },
-  { id: 'vidfast', name: 'VidFast', url: 'https://www.vidfast.pro' },
-  { id: 'embed-api', name: 'Embed API', url: 'https://player.embed-api.stream' },
-  { id: 'superembed', name: 'MultiEmbed', url: 'https://multiembed.mov' },
-  { id: 'vidsrc-xyz', name: 'VidSrc 2 (Backup)', url: 'https://vidsrc.xyz/embed' },
-  { id: 'vidsrc-pro', name: 'VidSrc 3 (Alt)', url: 'https://vidsrc.pro/embed' },
+  { id: 'uembed', name: 'UEmbed', url: 'https://uembed.xyz' },
 ];
 
 const Player: React.FC = () => {
@@ -24,6 +20,7 @@ const Player: React.FC = () => {
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isServerMenuOpen, setServerMenuOpen] = useState(false);
   const [currentServer, setCurrentServer] = useState(SERVERS[0]);
   const [loading, setLoading] = useState(true);
 
@@ -59,67 +56,112 @@ const Player: React.FC = () => {
   const seasons = movie.seasons?.filter(s => s.season_number > 0) || [];
   
   const getVideoUrl = () => {
-      // Logic for VidFast
-      if (currentServer.id === 'vidfast') {
-          if (type === 'movie') {
-              return `${currentServer.url}/movie/${id}`;
-          } else {
-              return `${currentServer.url}/tv/${id}/${season}/${episode}`;
-          }
-      }
+      const server = currentServer;
 
-      // Logic for Embed API
-      if (currentServer.id === 'embed-api') {
-          if (type === 'movie') {
-              return `${currentServer.url}/?id=${id}`;
-          } else {
-              return `${currentServer.url}/?id=${id}&s=${season}&e=${episode}`;
-          }
-      }
-
-      // Logic for MultiEmbed (SuperEmbed)
-      if (currentServer.id === 'superembed') {
-          if (type === 'movie') {
-              return `${currentServer.url}/?video_id=${id}&tmdb=1`;
-          } else {
-              return `${currentServer.url}/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`;
-          }
+      // Logic for UEmbed
+      if (server.id === 'uembed') {
+          if (type === 'movie') return `${server.url}/?id=${id}`;
+          return `${server.url}/?id=${id}&season=${season}&episode=${episode}`;
       }
       
       // Logic for VidSrc CC
-      if (currentServer.id === 'vidsrc-cc') {
-           if (type === 'movie') {
-              return `${currentServer.url}/movie/${id}`;
-          } else {
-              return `${currentServer.url}/tv/${id}/${season}/${episode}`;
-          }
+      if (server.id === 'vidsrc-cc') {
+           const cleanUrl = server.url.endsWith('/') ? server.url.slice(0, -1) : server.url;
+           if (type === 'movie') return `${cleanUrl}/movie/${id}`;
+           return `${cleanUrl}/tv/${id}/${season}/${episode}`;
       }
 
-      // Default fallback for generic VidSrc clones (xyz, pro)
-      if (type === 'movie') {
-          return `${currentServer.url}/movie/${id}`;
-      } else {
-          return `${currentServer.url}/tv/${id}/${season}/${episode}`;
-      }
+      // Default fallback
+      return '';
   };
 
   const videoUrl = getVideoUrl();
 
   return (
     <div className="bg-black h-screen w-screen overflow-hidden flex flex-col relative group/player">
-       {/* Removed Top Controls Container (Back button & Server select) to fix clickability and declutter */}
+       
+       {/* Top Controls (Back, Server Select, Episodes) */}
+       <div className="absolute top-6 left-6 z-50 flex items-center gap-4 transition-opacity duration-300 opacity-100 group-hover/player:opacity-100 md:opacity-0">
+           {/* Back Button */}
+           <button 
+             onClick={handleBack}
+             className="p-2.5 bg-black/60 hover:bg-zinc-800 text-zinc-200 hover:text-white rounded-full backdrop-blur-md border border-white/10 transition-all shadow-xl"
+           >
+             <X className="w-4 h-4" />
+           </button>
 
-       {/* Sidebar Toggle (TV Only) - Moved to Top Right */}
-       {type === 'tv' && (
-         <div className="absolute top-6 right-6 z-50 transition-opacity duration-300 opacity-100 group-hover/player:opacity-100 md:opacity-0">
-            <button 
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all hover:scale-105 active:scale-95 font-bold tracking-wide"
-            >
-              <Layers className="w-5 h-5" />
-              <span className="hidden md:inline">Episodes</span>
-            </button>
-         </div>
+           {/* Server Select Button */}
+           <button 
+             onClick={() => setServerMenuOpen(true)}
+             className="flex items-center gap-2 px-5 py-2.5 bg-black/60 hover:bg-zinc-800 text-zinc-200 hover:text-white rounded-full backdrop-blur-md border border-white/10 transition-all shadow-xl font-medium"
+           >
+             <Server className="w-4 h-4" />
+             <span className="text-sm hidden sm:inline">{currentServer.name}</span>
+             <ChevronDown className="w-3 h-3 ml-1 opacity-70" />
+           </button>
+
+           {/* Episodes Button (TV Only) - Moved here with new styling */}
+           {type === 'tv' && (
+             <button 
+               onClick={() => setSidebarOpen(true)}
+               className="flex items-center gap-2 px-5 py-2.5 bg-black/60 hover:bg-zinc-800 text-zinc-200 hover:text-white rounded-full backdrop-blur-md border border-white/10 transition-all shadow-xl font-medium"
+             >
+               <Layers className="w-4 h-4" />
+               <span className="text-sm hidden sm:inline">Episodes</span>
+             </button>
+           )}
+       </div>
+
+       {/* Server Selection Overlay */}
+       {isServerMenuOpen && (
+           <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 animate-in fade-in duration-200">
+               <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setServerMenuOpen(false)} />
+               
+               <div className="relative bg-zinc-900 w-full max-w-md rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden transform transition-all scale-100">
+                   <div className="flex items-center justify-between p-5 border-b border-zinc-800 bg-zinc-900">
+                       <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                           <Server className="w-5 h-5 text-red-600" /> 
+                           Streaming Source
+                       </h3>
+                       <button 
+                           onClick={() => setServerMenuOpen(false)}
+                           className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-white"
+                       >
+                           <X className="w-5 h-5" />
+                       </button>
+                   </div>
+                   
+                   <div className="p-3 bg-black/40">
+                       {SERVERS.map((server) => (
+                           <button
+                               key={server.id}
+                               onClick={() => {
+                                   setCurrentServer(server);
+                                   setServerMenuOpen(false);
+                               }}
+                               className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 mb-2 last:mb-0 group
+                                   ${currentServer.id === server.id 
+                                       ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' 
+                                       : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                                   }
+                               `}
+                           >
+                               <div className="flex flex-col items-start">
+                                   <span className="font-bold text-sm">
+                                       {server.name}
+                                   </span>
+                                   <span className={`text-xs mt-0.5 ${currentServer.id === server.id ? 'text-red-100' : 'text-zinc-500'}`}>
+                                       {server.id === 'vidsrc-cc' ? 'Recommended' : 'Alternative Server'}
+                                   </span>
+                               </div>
+                               {currentServer.id === server.id && (
+                                    <Check className="w-5 h-5" />
+                               )}
+                           </button>
+                       ))}
+                   </div>
+               </div>
+           </div>
        )}
 
        {/* Sidebar Overlay (Episodes) */}
@@ -203,7 +245,7 @@ const Player: React.FC = () => {
             <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-0">
                 <div className="animate-pulse flex flex-col items-center gap-2">
                     <div className="w-12 h-12 border-4 border-zinc-800 border-t-red-600 rounded-full animate-spin"></div>
-                    <p className="text-zinc-500 text-xs font-medium tracking-widest uppercase mt-4">Establishing Connection</p>
+                    <p className="text-zinc-500 text-xs font-medium tracking-widest uppercase mt-4">Connecting to {currentServer.name}</p>
                 </div>
             </div>
             
